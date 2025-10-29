@@ -11,7 +11,6 @@ import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
 class EnrollmentServiceTest {
 
     private EnrollmentService service;
@@ -32,15 +31,14 @@ class EnrollmentServiceTest {
 
     @Test
     void testEnrollWhenCourseIsFull() {
-        // setup course yang sudah penuh
         Course course = new Course("PPL101", "Pengujian Perangkat Lunak", 3, 30, 30, "Krisna Nuresa Qodri");
-        Student student = new Student("230209059", "Rengga Lahani", "renggalahani@gmail.com",
+        Student student = new Student("230309044", "Gian Naufal Bakti Adi", "giannaufal@gmail.com",
                 "Rekayasa Keamanan Siber", 5, 3.2, "ACTIVE");
 
         Mockito.when(courseRepo.findByCourseCode("PPL101")).thenReturn(course);
-        Mockito.when(studentRepo.findById("230209059")).thenReturn(student);
+        Mockito.when(studentRepo.findById("230309044")).thenReturn(student);
 
-        assertThrows(CourseFullException.class, () -> service.enrollCourse("230209059", "PPL101"));
+        assertThrows(CourseFullException.class, () -> service.enrollCourse("230309044", "PPL101"));
     }
 
     @Test
@@ -51,13 +49,13 @@ class EnrollmentServiceTest {
 
     @Test
     void testValidateCreditLimitWithinAllowedRange() {
-        Student student = new Student("230209059", "Rengga Lahani", "renggalahani@gmail.com",
+        Student student = new Student("230309044", "Gian Naufal Bakti Adi", "giannaufal@gmail.com",
                 "Rekayasa Keamanan Siber", 5, 3.5, "ACTIVE");
 
-        Mockito.when(studentRepo.findById("230209059")).thenReturn(student);
+        Mockito.when(studentRepo.findById("230309044")).thenReturn(student);
         Mockito.when(gradeCalculator.calculateMaxCredits(3.5)).thenReturn(24);
 
-        boolean valid = service.validateCreditLimit("230209059", 18);
+        boolean valid = service.validateCreditLimit("230309044", 18);
         assertTrue(valid);
     }
 
@@ -103,18 +101,58 @@ class EnrollmentServiceTest {
 
     @Test
     void testDropCourseSuccessfully() {
-        Student student = new Student("230209059", "Rengga Lahani", "renggalahani@gmail.com",
+        Student student = new Student("230309044", "Gian Naufal Bakti Adi", "giannaufal@gmail.com",
                 "Rekayasa Keamanan Siber", 5, 3.5, "ACTIVE");
         Course course = new Course("PPL101", "Pengujian Perangkat Lunak", 3, 30, 10, "Krisna Nuresa Qodri");
 
-        Mockito.when(studentRepo.findById("230209059")).thenReturn(student);
+        Mockito.when(studentRepo.findById("230309044")).thenReturn(student);
         Mockito.when(courseRepo.findByCourseCode("PPL101")).thenReturn(course);
 
-        service.dropCourse("230209059", "PPL101");
+        service.dropCourse("230309044", "PPL101");
 
         Mockito.verify(courseRepo).update(course);
-        Mockito.verify(notificationService).sendEmail(Mockito.eq("renggalahani@gmail.com"),
+        Mockito.verify(notificationService).sendEmail(Mockito.eq("giannaufal@gmail.com"),
                 Mockito.anyString(), Mockito.contains("Pengujian Perangkat Lunak"));
+    }
+
+    // ✅ Tambahan untuk menutup branch else (enrolled == 0)
+    @Test
+    void testDropCourse_WhenEnrolledCountIsZero() {
+        Student student = new Student("230309044", "Gian Naufal Bakti Adi", "giannaufal@gmail.com",
+                "Rekayasa Keamanan Siber", 5, 3.0, "ACTIVE");
+        Course course = new Course("PPL000", "Software Testing", 3, 30, 0, "Krisna");
+
+        Mockito.when(studentRepo.findById("230309044")).thenReturn(student);
+        Mockito.when(courseRepo.findByCourseCode("PPL000")).thenReturn(course);
+
+        service.dropCourse("230309044", "PPL000");
+
+        assertEquals(0, course.getEnrolledCount());
+        Mockito.verify(courseRepo).update(course);
+        Mockito.verify(notificationService).sendEmail(
+                Mockito.eq("giannaufal@gmail.com"),
+                Mockito.anyString(),
+                Mockito.contains("Software Testing")
+        );
+    }
+
+    // ✅ Tambahan: test dropCourse dengan student tidak ditemukan
+    @Test
+    void testDropCourse_ThrowsStudentNotFoundException() {
+        Mockito.when(studentRepo.findById("404")).thenReturn(null);
+        assertThrows(StudentNotFoundException.class, () -> service.dropCourse("404", "PPL101"));
+    }
+
+    // ✅ Tambahan: test dropCourse dengan course tidak ditemukan
+    @Test
+    void testDropCourse_ThrowsCourseNotFoundException() {
+        Student student = new Student("230309044", "Gian Naufal Bakti Adi", "giannaufal@gmail.com",
+                "Rekayasa Keamanan Siber", 5, 3.5, "ACTIVE");
+
+        Mockito.when(studentRepo.findById("230309044")).thenReturn(student);
+        Mockito.when(courseRepo.findByCourseCode("XYZ404")).thenReturn(null);
+
+        assertThrows(CourseNotFoundException.class, () -> service.dropCourse("230309044", "XYZ404"));
     }
 
     @Test
@@ -125,23 +163,24 @@ class EnrollmentServiceTest {
 
     @Test
     void testEnrollCourseSuccessfully() {
-        Student student = new Student("005", "Lina", "lina@mail.com", "Rekayasa Keamanan Siber", 5, 3.8, "ACTIVE");
+        Student student = new Student("230309044", "Gian Naufal Bakti Adi", "giannaufal@gmail.com",
+                "Rekayasa Keamanan Siber", 5, 3.8, "ACTIVE");
         Course course = new Course("PPL101", "Pengujian Perangkat Lunak", 3, 30, 10, "Krisna Nuresa Qodri");
 
-        Mockito.when(studentRepo.findById("005")).thenReturn(student);
+        Mockito.when(studentRepo.findById("230309044")).thenReturn(student);
         Mockito.when(courseRepo.findByCourseCode("PPL101")).thenReturn(course);
-        Mockito.when(courseRepo.isPrerequisiteMet("005", "PPL101")).thenReturn(true);
+        Mockito.when(courseRepo.isPrerequisiteMet("230309044", "PPL101")).thenReturn(true);
 
-        var enrollment = service.enrollCourse("005", "PPL101");
+        var enrollment = service.enrollCourse("230309044", "PPL101");
 
         assertNotNull(enrollment);
-        assertEquals("005", enrollment.getStudentId());
+        assertEquals("230309044", enrollment.getStudentId());
         assertEquals("PPL101", enrollment.getCourseCode());
         assertEquals("APPROVED", enrollment.getStatus());
 
         Mockito.verify(courseRepo).update(course);
         Mockito.verify(notificationService).sendEmail(
-                Mockito.eq("lina@mail.com"),
+                Mockito.eq("giannaufal@gmail.com"),
                 Mockito.anyString(),
                 Mockito.contains("Pengujian Perangkat Lunak")
         );
@@ -151,37 +190,27 @@ class EnrollmentServiceTest {
     // TEST STUB
     // ============================
 
-    // Stub class untuk GradeCalculator
     static class StubGradeCalculator extends GradeCalculator {
         @Override
         public int calculateMaxCredits(double gpa) {
-            // Simulasi: selalu mengembalikan nilai tetap 24 SKS
             return 24;
         }
     }
 
     @Test
     void testValidateCreditLimit_UsingStub() {
-        // Pakai mock untuk repository dan notification, tapi stub untuk GradeCalculator
         StudentRepository studentRepo = Mockito.mock(StudentRepository.class);
         CourseRepository courseRepo = Mockito.mock(CourseRepository.class);
         NotificationService notif = Mockito.mock(NotificationService.class);
-
-        // Gunakan stub manual, bukan Mockito
         GradeCalculator stubCalc = new StubGradeCalculator();
 
-        // Buat service dengan stub
         EnrollmentService service = new EnrollmentService(studentRepo, courseRepo, notif, stubCalc);
 
-        // Setup data mahasiswa
-        Student s = new Student("230209059", "Rengga Lahani", "renggalahani@gmail.com",
+        Student s = new Student("230309044", "Gian Naufal Bakti Adi", "giannaufal@gmail.com",
                 "Rekayasa Keamanan Siber", 5, 3.8, "ACTIVE");
-        Mockito.when(studentRepo.findById("230209059")).thenReturn(s);
+        Mockito.when(studentRepo.findById("230309044")).thenReturn(s);
 
-        // Jalankan method yang diuji
-        boolean valid = service.validateCreditLimit("230209059", 18);
-
-        // Verifikasi hasil
+        boolean valid = service.validateCreditLimit("230309044", 18);
         assertTrue(valid, "Seharusnya valid karena stub selalu mengembalikan 24 SKS");
     }
 }

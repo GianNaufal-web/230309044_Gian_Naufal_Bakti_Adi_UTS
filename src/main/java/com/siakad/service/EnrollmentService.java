@@ -1,7 +1,5 @@
 package com.siakad.service;
 
-
-
 import com.siakad.exception.*;
 import com.siakad.model.Course;
 import com.siakad.model.Enrollment;
@@ -15,12 +13,11 @@ import java.time.LocalDateTime;
  * Service untuk mengelola enrollment (pendaftaran mata kuliah)
  * Class ini akan diuji dengan STUB dan MOCK
  */
-
 public class EnrollmentService {
-    private StudentRepository studentRepository;
-    private CourseRepository courseRepository;
-    private NotificationService notificationService;
-    private GradeCalculator gradeCalculator;
+    private final StudentRepository studentRepository;
+    private final CourseRepository courseRepository;
+    private final NotificationService notificationService;
+    private final GradeCalculator gradeCalculator;
 
     public EnrollmentService(StudentRepository studentRepository,
                              CourseRepository courseRepository,
@@ -35,45 +32,40 @@ public class EnrollmentService {
     /**
      * Mendaftarkan mahasiswa ke mata kuliah
      * Method ini akan diuji dengan MOCK
-     *
-     * @param studentId ID mahasiswa
-     * @param courseCode Kode mata kuliah
-     * @return Enrollment object jika berhasil
-     * @throws StudentNotFoundException jika mahasiswa tidak ditemukan
-     * @throws EnrollmentException jika mahasiswa di-suspend
-     * @throws CourseNotFoundException jika mata kuliah tidak ditemukan
-     * @throws CourseFullException jika mata kuliah sudah penuh
-     * @throws PrerequisiteNotMetException jika prasyarat tidak terpenuhi
      */
     public Enrollment enrollCourse(String studentId, String courseCode) {
-        // Validate student
+        // Validasi mahasiswa
         Student student = studentRepository.findById(studentId);
         if (student == null) {
             throw new StudentNotFoundException("Student not found: " + studentId);
         }
 
-        // Check academic status
-        if ("SUSPENDED".equals(student.getAcademicStatus())) {
+        // Status akademik
+        String status = student.getAcademicStatus();
+        if ("SUSPENDED".equalsIgnoreCase(status)) {
             throw new EnrollmentException("Student is suspended");
         }
 
-        // Validate course
+        // Validasi mata kuliah
         Course course = courseRepository.findByCourseCode(courseCode);
         if (course == null) {
             throw new CourseNotFoundException("Course not found: " + courseCode);
         }
 
-        // Check capacity
-        if (course.getEnrolledCount() >= course.getCapacity()) {
+        // Kapasitas
+        int enrolled = course.getEnrolledCount();
+        int capacity = course.getCapacity();
+        if (enrolled >= capacity) {
             throw new CourseFullException("Course is full");
         }
 
-        // Check prerequisites
-        if (!courseRepository.isPrerequisiteMet(studentId, courseCode)) {
+        // Prasyarat
+        boolean prereqMet = courseRepository.isPrerequisiteMet(studentId, courseCode);
+        if (!prereqMet) {
             throw new PrerequisiteNotMetException("Prerequisites not met");
         }
 
-        // Create enrollment
+        // Pembuatan enrollment
         Enrollment enrollment = new Enrollment();
         enrollment.setEnrollmentId(generateEnrollmentId());
         enrollment.setStudentId(studentId);
@@ -81,26 +73,21 @@ public class EnrollmentService {
         enrollment.setEnrollmentDate(LocalDateTime.now());
         enrollment.setStatus("APPROVED");
 
-        // Update course enrollment count
-        course.setEnrolledCount(course.getEnrolledCount() + 1);
+        // Update jumlah peserta
+        course.setEnrolledCount(enrolled + 1);
         courseRepository.update(course);
 
-        // Send notification
-        notificationService.sendEmail(student.getEmail(),
-                "Enrollment Confirmation",
-                "You have been enrolled in: " + course.getCourseName());
+        // Kirim notifikasi
+        String email = student.getEmail();
+        String subject = "Enrollment Confirmation";
+        String message = "You have been enrolled in: " + course.getCourseName();
+        notificationService.sendEmail(email, subject, message);
 
         return enrollment;
     }
 
     /**
-     * Validasi batas SKS yang boleh diambil mahasiswa
-     * Method ini akan diuji dengan STUB
-     *
-     * @param studentId ID mahasiswa
-     * @param requestedCredits Jumlah SKS yang diminta
-     * @return true jika SKS masih dalam batas, false jika melebihi
-     * @throws StudentNotFoundException jika mahasiswa tidak ditemukan
+     * Validasi batas SKS
      */
     public boolean validateCreditLimit(String studentId, int requestedCredits) {
         Student student = studentRepository.findById(studentId);
@@ -113,13 +100,7 @@ public class EnrollmentService {
     }
 
     /**
-     * Drop (membatalkan) mata kuliah yang sudah didaftarkan
-     * Method ini akan diuji dengan STUB
-     *
-     * @param studentId ID mahasiswa
-     * @param courseCode Kode mata kuliah
-     * @throws StudentNotFoundException jika mahasiswa tidak ditemukan
-     * @throws CourseNotFoundException jika mata kuliah tidak ditemukan
+     * Drop mata kuliah
      */
     public void dropCourse(String studentId, String courseCode) {
         Student student = studentRepository.findById(studentId);
@@ -132,21 +113,30 @@ public class EnrollmentService {
             throw new CourseNotFoundException("Course not found");
         }
 
-        // Update enrollment count
-        course.setEnrolledCount(course.getEnrolledCount() - 1);
+        // Jika enrolledCount lebih besar dari nol baru dikurangi
+        int enrolled = course.getEnrolledCount();
+        if (enrolled > 0) {
+            course.setEnrolledCount(enrolled - 1);
+        } else {
+            // Tambahan untuk menutup branch kondisi nol
+            course.setEnrolledCount(0);
+        }
+
         courseRepository.update(course);
 
-        // Send notification
-        notificationService.sendEmail(student.getEmail(),
+        notificationService.sendEmail(
+                student.getEmail(),
                 "Course Drop Confirmation",
-                "You have dropped: " + course.getCourseName());
+                "You have dropped: " + course.getCourseName()
+        );
     }
 
     /**
-     * Generate unique enrollment ID
-     * @return Enrollment ID
+     * Generate ID unik
      */
     private String generateEnrollmentId() {
-        return "ENR-" + System.currentTimeMillis();
+        String prefix = "ENR-";
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        return prefix + timestamp;
     }
 }
