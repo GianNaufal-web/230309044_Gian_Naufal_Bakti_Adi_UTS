@@ -10,15 +10,15 @@ class ModelTest {
     void testStudentGetterSetter() {
         Student s = new Student();
         s.setStudentId("001");
-        s.setName("Rengga");
-        s.setEmail("rengga@mail.com");
+        s.setName("Gian");
+        s.setEmail("giannaufal@mail.com");
         s.setMajor("IF");
         s.setSemester(3);
         s.setGpa(3.5);
         s.setAcademicStatus("ACTIVE");
 
         assertEquals("001", s.getStudentId());
-        assertEquals("Rengga", s.getName());
+        assertEquals("gian", s.getName());
         assertEquals("IF", s.getMajor());
     }
 
